@@ -309,11 +309,10 @@ contract Connect4 is Ownable {
         return (game.board, game.currentPlayer, game.completed, isPlayerTurn);
     }
 
-    function withdrawFees() public onlyOwner {
+    function withdrawFees(address betToken) public onlyOwner {
         uint256 amount = totalFees;
         totalFees = 0;
-        (bool success, ) = payable(owner()).call{value: amount}("");
-        require(success, "Failed to transfer fees");
+        IERC20(betToken).safeTransfer(owner(), amount);
         emit FeesTransferred(owner(), amount);
     }
 }

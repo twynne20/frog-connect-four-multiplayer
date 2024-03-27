@@ -191,7 +191,7 @@ contract Connect4Test is Test {
         connect4.makeMove(1, 0);
 
         uint256 initialBalance = token.balanceOf(address(this));
-        connect4.withdrawFees();
+        connect4.withdrawFees(address(token));
         uint256 finalBalance = token.balanceOf(address(this));
 
         assertEq(finalBalance - initialBalance, 6, "Fees should be transferred to the owner");
