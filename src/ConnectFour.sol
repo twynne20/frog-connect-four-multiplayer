@@ -6,6 +6,10 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Connect4 is Ownable {
+    constructor() Ownable(msg.sender) {
+        
+    }
+
     using SafeERC20 for IERC20;
 
     struct Game {
@@ -24,7 +28,8 @@ contract Connect4 is Ownable {
     mapping(address => uint256) public playerWins;
     uint256 public gameCount;
     uint256 public constant FEE_PERCENTAGE = 3;
-    address public constant DEGEN_TOKEN = 0x6160D0Ca6ad8AA9Cc68d143D01591d8050b7dD9f;
+    // Remove for testing
+    // address public constant DEGEN_TOKEN = 0x6160D0Ca6ad8AA9Cc68d143D01591d8050b7dD9f;
     uint256 public totalFees;
 
     event GameCreated(uint256 indexed gameId, address indexed player1, uint256 betAmount, address betToken, bool openToPublic);
@@ -34,11 +39,21 @@ contract Connect4 is Ownable {
     event FeesTransferred(address indexed owner, uint256 amount);
 
     function createGame(uint256 _betAmount, address _betToken, bool _openToPublic, address _specificAddress) public payable {
-        require(_betToken == DEGEN_TOKEN || _betToken == address(0), "Invalid bet token");
+        // Remove for testing without base fork:
+        // require(_betToken == DEGEN_TOKEN || _betToken == address(0), "Invalid bet token");
+        // require(_betAmount > 0, "Bet amount must be greater than zero");
+
+        // if (_betToken == DEGEN_TOKEN) {
+        //     IERC20(DEGEN_TOKEN).safeTransferFrom(msg.sender, address(this), _betAmount);
+        // } else {
+        //     require(msg.value == _betAmount, "Bet amount mismatch");
+        // }
+        // Testing code:
+        require(_betToken != address(0), "Invalid bet token");
         require(_betAmount > 0, "Bet amount must be greater than zero");
 
-        if (_betToken == DEGEN_TOKEN) {
-            IERC20(DEGEN_TOKEN).safeTransferFrom(msg.sender, address(this), _betAmount);
+        if (_betToken != address(0)) {
+            IERC20(_betToken).safeTransferFrom(msg.sender, address(this), _betAmount);
         } else {
             require(msg.value == _betAmount, "Bet amount mismatch");
         }
@@ -68,13 +83,25 @@ contract Connect4 is Ownable {
     }
 
     function joinGame(uint256 _gameId) public payable {
+        // Remove for testing without base fork:
+        // Game storage game = games[_gameId];
+        // require(game.player1 != address(0), "Game does not exist");
+        // require(game.player2 == address(0) || game.player2 == msg.sender, "Game already joined or not open to public");
+        // require(!game.completed, "Game already completed");
+
+        // if (game.betToken == DEGEN_TOKEN) {
+        //     IERC20(DEGEN_TOKEN).safeTransferFrom(msg.sender, address(this), game.betAmount);
+        // } else {
+        //     require(msg.value == game.betAmount, "Bet amount mismatch");
+        // }
+        // Testing code:
         Game storage game = games[_gameId];
         require(game.player1 != address(0), "Game does not exist");
         require(game.player2 == address(0) || game.player2 == msg.sender, "Game already joined or not open to public");
         require(!game.completed, "Game already completed");
 
-        if (game.betToken == DEGEN_TOKEN) {
-            IERC20(DEGEN_TOKEN).safeTransferFrom(msg.sender, address(this), game.betAmount);
+        if (game.betToken != address(0)) {
+            IERC20(game.betToken).safeTransferFrom(msg.sender, address(this), game.betAmount);
         } else {
             require(msg.value == game.betAmount, "Bet amount mismatch");
         }
@@ -111,8 +138,8 @@ contract Connect4 is Ownable {
             uint256 fee = (prize * FEE_PERCENTAGE) / 100;
             uint256 winnings = prize - fee;
             totalFees += fee;
-            if (game.betToken == DEGEN_TOKEN) {
-                IERC20(DEGEN_TOKEN).safeTransfer(msg.sender, winnings);
+            if (game.betToken != address(0)) {
+                IERC20(game.betToken).safeTransfer(msg.sender, winnings);
             } else {
                 payable(msg.sender).transfer(winnings);
             }
@@ -142,7 +169,7 @@ contract Connect4 is Ownable {
     event Log(string message, uint256 value);
 
     function isValidMove(uint8[6][7] memory _board, uint8 _column) private pure returns (bool) {
-        return _board[_column][5] == 0;
+        return _column < 7 && _board[_column][5] == 0;
     }
 
     function checkWinner(uint8[6][7] memory _board, uint8 _column, uint8 _player) private pure returns (bool) {
@@ -285,7 +312,8 @@ contract Connect4 is Ownable {
     function withdrawFees() public onlyOwner {
         uint256 amount = totalFees;
         totalFees = 0;
-        payable(owner()).transfer(amount);
+        (bool success, ) = payable(owner()).call{value: amount}("");
+        require(success, "Failed to transfer fees");
         emit FeesTransferred(owner(), amount);
     }
 }
